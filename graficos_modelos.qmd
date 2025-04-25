@@ -1,0 +1,1183 @@
+---
+title: "Resultados"
+format: pdf
+editor: visual
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(haven)
+library(nnet)
+library(texreg)
+library(marginaleffects)
+library(knitr)
+library(kableExtra)
+library(stringr)
+rm(list = ls())
+load("C:/Users/cjara/OneDrive - Universidad Católica de Chile/Bicentenario/base_pt4.RData")
+```
+
+#### Valores Predichos de Modelos Logísticos Multinomiales Modelo 1
+
+##### Gráfico 1: Probabilidad de denominación religiosa a partir de la religión de los padres
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+m1 <- multinom(
+  relevel(factor(reli_encuestado), ref = "Ninguna religión") ~ 
+    relevel(factor(transf_rel), ref = "Padres sin religión") + 
+    relevel(factor(cohorte_nac), ref = "1960-1969") + 
+    relevel(factor(nse1), ref = "Medio") +
+    relevel(factor(educ_enc), ref="Media") +
+    sexo + ano, 
+  data = datos, 
+  weights = ponderador,
+  trace = FALSE
+)
+recodificar_combinaciones <- function(x) {
+  case_when(
+    x == "Padres católicos" ~ "CC",
+    x == "Padres sin religión" ~ "NN",
+    x == "Padres evangélicos" ~ "EE",
+    x == "Madre católica - Padre sin religión" ~ "CN",
+    x == "Madre evangélica - Padre sin religión" ~ "EN",
+    x == "Padre católico - Madre evangélica" ~ "EC",
+    x == "Padre católico - Madre sin religión" ~ "NC",
+    x == "Madre católica - Padre evangélico" ~ "CE",
+    x == "Padre evangélico - Madre sin religión" ~ "NE",
+    TRUE ~ NA_character_
+  )
+}
+
+new_data <- expand.grid(
+  transf_rel = unique(datos$transf_rel)[!is.na(unique(datos$transf_rel))],
+  cohorte_nac = "1960-1969",
+  nse1 = "Medio",
+  educ_enc = "Media",
+  sexo = "Mujer",
+  ano = mean(datos$ano, na.rm = TRUE)
+)
+
+pred_probs <- predict(m1, newdata = new_data, type = "probs")
+predictions <- cbind(new_data, as.data.frame(pred_probs))
+
+predictions_long <- predictions %>%
+  mutate(transf_rel = recodificar_combinaciones(transf_rel)) %>%
+  pivot_longer(
+    cols = c("Católica", "Evangélica", "Ninguna religión"),  # Asegúrate que "Sin religión" esté aquí
+    names_to = "denominacion",
+    values_to = "probabilidad"
+  )
+
+ggplot(predictions_long, aes(x = transf_rel, y = probabilidad, fill = denominacion)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = sprintf("%.2f", probabilidad)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  facet_wrap(~ denominacion) +
+  scale_fill_manual(values = c(
+    "Católica" = "#FF69B4",      # Rosa
+    "Evangélica" = "#00A86B",    # Verde
+    "Ninguna religión" = "#FFD700"   # Amarillo
+  )) +
+  theme_minimal() +
+  labs(
+    x = "Combinación Denominación Religiosa Padres ([Madre][Padre])",
+    y = "Probabilidad de Denominación Religiosa"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95"),
+    strip.background = element_rect(fill = "gray95"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"  # Elimina la leyenda
+  ) +
+  scale_y_continuous(limits = c(0, 1.1), breaks = seq(0, 1, 0.25))
+
+```
+
+Nota: Valores predichos se calculan controlando por género, edad, educación, nivel socioeconómico del entrevistado y año de la encuesta (Fuente: Encuesta Bicentenario 2006-2024)
+
+##### Gráfico 2: Probabilidad de ser católico a partir de la religión de los padres
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+new_data <- expand.grid(
+  transf_rel = c(
+    "Padres católicos",
+    "Padres sin religión",
+    "Padres evangélicos",
+    "Madre católica - Padre sin religión",
+    "Madre evangélica - Padre sin religión",
+    "Padre católico - Madre evangélica",
+    "Padre católico - Madre sin religión",
+    "Madre católica - Padre evangélico",
+    "Padre evangélico - Madre sin religión"
+  ),
+  cohorte_nac = "1960-1969",
+  nse1 = "Medio",
+  educ_enc = "Media",
+  sexo = "Mujer",
+  ano = mean(datos$ano, na.rm = TRUE)
+)
+
+pred_probs <- predict(m1, newdata = new_data, type = "probs")
+predictions <- cbind(new_data, as.data.frame(pred_probs))
+
+recodificar_grupos <- function(x) {
+  case_when(
+    x == "Padres católicos" ~ "Católicos",
+    x %in% c("Madre católica - Padre sin religión", "Madre católica - Padre evangélico") ~ "Católica/Otra",
+    x %in% c("Padre católico - Madre evangélica", "Padre católico - Madre sin religión") ~ "Otra/Católico",
+    x %in% c("Padres evangélicos", "Padres sin religión", 
+             "Madre evangélica - Padre sin religión", 
+             "Padre evangélico - Madre sin religión") ~ "Otra/Otro",
+    TRUE ~ x
+  )
+}
+
+
+predictions_grouped <- predictions %>%
+  mutate(grupo = recodificar_grupos(transf_rel)) %>%
+  group_by(grupo) %>%
+  summarise(Católica = mean(Católica)) %>%
+  ungroup()
+
+predictions_grouped$grupo <- factor(
+  predictions_grouped$grupo,
+  levels = c(
+    "Católicos",
+    "Católica/Otra",
+    "Otra/Católico",
+    "Otra/Otro"
+  )
+)
+
+ggplot(predictions_grouped, aes(x = grupo, y = Católica)) +
+  geom_bar(stat = "identity", fill = "#FF69B4") +
+  geom_text(aes(label = sprintf("%.2f", Católica)), 
+            vjust = -0.5, size = 3) +
+  theme_minimal() +
+  labs(
+    x = "Combinación Denominación Religiosa Padres ([Madre][Padre])",
+    y = "Probabilidad de ser Católico"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95"),
+    plot.title = element_text(hjust = 0.5, face = "bold")
+  ) +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) +
+  coord_cartesian(ylim = c(0, 0.9))
+```
+
+Nota: Valores predichos se calculan controlando por género, edad, educación, nivel socioeconómico del entrevistado y año de la encuesta (Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Gráfico 3: Porcentaje de personas afiliadas a alguna religión, por cohorte de nacimiento y año de encuesta
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Incluimos también a las personas que no tienen religión
+datos_religiones <- datos %>%
+  mutate(cohorte_grupo = case_when(
+    cohorte_nac %in% c("1980-1989", "1990-1999", "2000-2009") ~ "1980 - 2009",
+    cohorte_nac %in% c("1960-1969", "1970-1979") ~ "1960 - 1979",
+    cohorte_nac %in% c("1940-1949", "1950-1959") ~ "1940 - 1959",
+    cohorte_nac %in% c("1910-1919", "1920-1929", "1930-1939") ~ "1939 o anterior",
+    TRUE ~ NA_character_
+  ))
+
+# Calcular el porcentaje de personas religiosas ponderado por año y cohorte
+datos_porcentajes <- datos_religiones %>%
+  filter(!is.na(cohorte_grupo), !is.na(religion_encuestado2), !is.na(ponderador)) %>%
+  group_by(ano, cohorte_grupo) %>%
+  summarise(
+    total_ponderado = sum(ponderador, na.rm = TRUE),  # Total ponderado de la cohorte en el año
+    n_religiosas_ponderado = sum(ponderador[religion_encuestado2 %in% c("Católica", "Evangélica", "Otra religión")], na.rm = TRUE),  # Total ponderado de personas religiosas
+    porcentaje = (n_religiosas_ponderado / total_ponderado) * 100,  # Porcentaje ponderado
+    .groups = "drop"
+  )
+
+# Visualización
+ggplot(datos_porcentajes, aes(x = ano, y = porcentaje, color = cohorte_grupo)) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid", size = 1.2) +
+  scale_color_manual(values = c(
+    "1980 - 2009" = "#FF69B4", 
+    "1960 - 1979" = "#00A86B",
+    "1940 - 1959" = "#FFD700", 
+    "1939 o anterior" = "#6495ED"
+  )) +
+  scale_x_continuous(
+    breaks = seq(2006, 2024, by = 1),
+    limits = c(2006, 2024)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 10)
+  ) +
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Cohorte"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+```
+
+(Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Gráfico 4: Porcentaje de personas católicas por cohorte de nacimiento y año de encuesta
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Incluimos también a las personas que no tienen religión
+datos_religiones <- datos %>%
+  mutate(cohorte_grupo = case_when(
+    cohorte_nac %in% c("1980-1989", "1990-1999", "2000-2009") ~ "1980 - 2009",
+    cohorte_nac %in% c("1960-1969", "1970-1979") ~ "1960 - 1979",
+    cohorte_nac %in% c("1940-1949", "1950-1959") ~ "1940 - 1959",
+    cohorte_nac %in% c("1910-1919", "1920-1929", "1930-1939") ~ "1939 o anterior",
+    TRUE ~ NA_character_
+  ))
+
+datos_porcentajes <- datos_religiones %>%
+  filter(!is.na(cohorte_grupo), !is.na(religion_encuestado2), !is.na(ponderador)) %>%
+  group_by(ano, cohorte_grupo) %>%
+  summarise(
+    total_ponderado = sum(ponderador, na.rm = TRUE),  # Total ponderado de la cohorte en el año
+    n_religiosas_ponderado = sum(ponderador[religion_encuestado2 %in% c("Católica")], na.rm = TRUE),  # Total ponderado de personas religiosas
+    porcentaje = (n_religiosas_ponderado / total_ponderado) * 100,  # Porcentaje ponderado
+    .groups = "drop"
+  )
+
+# Visualización
+ggplot(datos_porcentajes, aes(x = ano, y = porcentaje, color = cohorte_grupo)) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid", size = 1.2) +
+  scale_color_manual(values = c(
+    "1980 - 2009" = "#FF69B4", 
+    "1960 - 1979" = "#00A86B",
+    "1940 - 1959" = "#FFD700", 
+    "1939 o anterior" = "#6495ED"
+  )) +
+  scale_x_continuous(
+    breaks = seq(2006, 2024, by = 1),
+    limits = c(2006, 2024)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, 10)
+  ) +
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Cohorte"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+```
+
+(Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Valores Predichos de Modelos Logísticos Multinomiales Modelo 2
+
+##### Gráfico 7: Probabilidad de denominación religiosa a partir de la religión que profesaba a los 14 años
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+m4 <- multinom(
+  relevel(factor(religion_encuestado2), ref = "Otra religión") ~ 
+    relevel(factor(religion_14años2), ref = "Otra religión") + 
+    relevel(factor(cohorte_nac), ref = "1960-1969") + 
+    relevel(factor(nse1), ref = "Medio") +
+    relevel(factor(educ_enc), ref="Media") +
+    sexo + ano, 
+  data = datos, 
+  weights = ponderador,
+  trace = FALSE
+)
+
+new_data <- expand.grid(
+  religion_14años2 = c("Católica", "Evangélica", "Ninguna religión", "Otra religión"),
+  cohorte_nac = "1960-1969",
+  nse1 = "Medio",
+  educ_enc = "Media",
+  sexo = "Mujer",
+  ano = mean(datos$ano, na.rm = TRUE)
+)
+
+pred_probs <- predict(m4, newdata = new_data, type = "probs")
+predictions <- cbind(new_data, as.data.frame(pred_probs))
+
+predictions_long <- predictions %>%
+  pivot_longer(
+    cols = c("Católica", "Evangélica", "Ninguna religión", "Otra religión"),  # Las 4 categorías de la religión dependiente
+    names_to = "denominacion",
+    values_to = "probabilidad"
+  )
+
+ggplot(predictions_long, aes(x = religion_14años2, y = probabilidad, fill = denominacion)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = sprintf("%.2f", probabilidad)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  facet_wrap(~ denominacion) +
+  scale_fill_manual(values = c(
+    "Católica" = "#FF69B4",      # Rosa
+    "Evangélica" = "#00A86B",    # Verde
+    "Ninguna religión" = "#FFD700",  # Amarillo
+    "Otra religión" = "#6495ED"  # Azul
+  )) +
+  theme_minimal() +
+  labs(
+    x = "Religión a los 14 años",
+    y = "Probabilidad de denominación religiosa"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95"),
+    strip.background = element_rect(fill = "gray95"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"  # Elimina la leyenda
+  ) +
+  scale_y_continuous(limits = c(0, 1.1), breaks = seq(0, 1, 0.25))
+```
+
+Nota: Valores predichos se calculan controlando por género, edad, educación, nivel socioeconómico del entrevistado y año de la encuesta (Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Valores Predichos de Modelos Logísticos Multinomiales Modelo 3
+
+##### Gráfico 8: Probabilidad de denominación religiosa del hijo del encuestado a partir de la religión que profesaba encuestado y su pareja
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+m6 <- multinom(
+  relevel(factor(reli_hijo), ref = "Ninguna religión") ~ 
+    relevel(factor(transf_rel2), ref = "Padres sin religión") + 
+    relevel(factor(cohorte_nac), ref = "1960-1969") + 
+    relevel(factor(nse1), ref = "Medio") +
+    relevel(factor(educ_enc), ref="Media") +
+    sexo + ano, 
+  data = datos, 
+  weights = ponderador,
+  trace = FALSE
+)
+
+# Recodificar las combinaciones para transf_rel2
+recodificar_combinaciones <- function(x) {
+  case_when(
+    x == "Padres católicos" ~ "CC",
+    x == "Padres sin religión" ~ "NN",
+    x == "Padres evangélicos" ~ "EE",
+    x == "Madre católica - Padre sin religión" ~ "CN",
+    x == "Madre evangélica - Padre sin religión" ~ "EN",
+    x == "Padre católico - Madre evangélica" ~ "EC",
+    x == "Padre católico - Madre sin religión" ~ "NC",
+    x == "Madre católica - Padre evangélico" ~ "CE",
+    x == "Padre evangélico - Madre sin religión" ~ "NE",
+    TRUE ~ NA_character_
+  )
+}
+
+# Crear el conjunto de datos para las predicciones
+new_data <- expand.grid(
+  transf_rel2 = unique(datos$transf_rel2)[!is.na(unique(datos$transf_rel2))],
+  cohorte_nac = "1960-1969",
+  nse1 = "Medio",
+  educ_enc = "Media",
+  sexo = "Mujer",
+  ano = mean(datos$ano, na.rm = TRUE)
+)
+
+# Realizar la predicción con el modelo multinomial m6
+pred_probs <- predict(m6, newdata = new_data, type = "probs")
+predictions <- cbind(new_data, as.data.frame(pred_probs))
+
+# Convertir los resultados en formato largo
+predictions_long <- predictions %>%
+  mutate(transf_rel2 = recodificar_combinaciones(transf_rel2)) %>%
+  pivot_longer(
+    cols = c("Católica", "Evangélica", "Ninguna religión"), 
+    names_to = "denominacion",
+    values_to = "probabilidad"
+  )
+
+# Graficar los resultados
+ggplot(predictions_long, aes(x = transf_rel2, y = probabilidad, fill = denominacion)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = sprintf("%.2f", probabilidad)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5, size = 3) +
+  facet_wrap(~ denominacion) +
+  scale_fill_manual(values = c(
+    "Católica" = "#FF69B4",      # Rosa
+    "Evangélica" = "#00A86B",    # Verde
+    "Ninguna religión" = "#FFD700"  # Amarillo
+  )) +
+  theme_minimal() +
+  labs(
+    x = "Combinación Denominación Religiosa Padres ([Madre][Padre])",
+    y = "Probabilidad de Denominación Religiosa del Hijo"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95"),
+    strip.background = element_rect(fill = "gray95"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"  # Elimina la leyenda
+  ) +
+  scale_y_continuous(limits = c(0, 1.1), breaks = seq(0, 1, 0.25))
+
+```
+
+Nota: Valores predichos se calculan controlando por género, edad, educación, nivel socioeconómico del entrevistado y año de la encuesta (Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Tabla 1: Tasas de retención y desafiliación de las principales agrupaciones religiosas y "ninguna religión"
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tabla_ponderada <- datos %>%
+  filter(!is.na(transf_rel3), !is.na(religion_encuestado2), !is.na(ponderador)) %>%
+  group_by(transf_rel3, religion_encuestado2) %>%
+  summarise(freq_ponderada = sum(ponderador, na.rm = TRUE), .groups = "drop")
+totales_filas <- tabla_ponderada %>%
+  group_by(transf_rel3) %>%
+  summarise(total_ponderado = sum(freq_ponderada, na.rm = TRUE), .groups = "drop")
+tabla_ponderada <- tabla_ponderada %>%
+  left_join(totales_filas, by = "transf_rel3") %>%
+  mutate(porcentaje = (freq_ponderada / total_ponderado) * 100) %>%
+  select(transf_rel3, religion_encuestado2, porcentaje)
+tabla_df <- tidyr::pivot_wider(tabla_ponderada, 
+                               names_from = religion_encuestado2, 
+                               values_from = porcentaje)
+colnames(tabla_df)[1] <- ""
+kable(tabla_df, digits = 1, caption = "Tasas de retención y desafiliación de las principales agrupaciones religiosas y 'ninguna religión'", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+```
+
+(Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Tabla 2: Tasas de conversión de las principales agrupaciones religiosas y "ninguna religión"
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE}
+tabla_ponderada <- datos %>%
+  filter(!is.na(transf_rel3), !is.na(religion_encuestado2), !is.na(ponderador)) %>%
+  group_by(transf_rel3, religion_encuestado2) %>%
+  summarise(freq_ponderada = sum(ponderador, na.rm = TRUE), .groups = "drop")
+totales_columnas <- tabla_ponderada %>%
+  group_by(religion_encuestado2) %>%
+  summarise(total_ponderado = sum(freq_ponderada, na.rm = TRUE), .groups = "drop")
+tabla_ponderada <- tabla_ponderada %>%
+  left_join(totales_columnas, by = "religion_encuestado2") %>%
+  mutate(porcentaje = (freq_ponderada / total_ponderado) * 100) %>%
+  select(transf_rel3, religion_encuestado2, porcentaje)
+tabla_df <- tabla_ponderada %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = porcentaje)
+colnames(tabla_df)[1] <- ""
+kable(tabla_df, digits = 1, caption = "Tasas de conversión de las principales agrupaciones religiosas y 'ninguna religión'", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"))
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tabla_ponderada <- datos %>%
+  filter(!is.na(transf_rel), !is.na(religion_encuestado2), !is.na(ponderador)) %>%
+  group_by(transf_rel, religion_encuestado2) %>%
+  summarise(freq_ponderada = sum(ponderador, na.rm = TRUE), .groups = "drop")
+totales_columnas <- tabla_ponderada %>%
+  group_by(religion_encuestado2) %>%
+  summarise(total_ponderado = sum(freq_ponderada, na.rm = TRUE), .groups = "drop")
+tabla_ponderada <- tabla_ponderada %>%
+  left_join(totales_columnas, by = "religion_encuestado2") %>%
+  mutate(porcentaje = (freq_ponderada / total_ponderado) * 100) %>%
+  select(transf_rel, religion_encuestado2, porcentaje)
+tabla_df <- tabla_ponderada %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = porcentaje)
+colnames(tabla_df)[1] <- ""
+kable(tabla_df, digits = 1, caption = "Tasas de conversión de las principales agrupaciones religiosas y 'ninguna religión'", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position", "scale_down"))
+```
+
+(Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Tabla 4: Tasas de retención y desafiliación de las principales agrupaciones religiosas y "ninguna religión"
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Crear la categoría inicial transf_rel4
+datos <- datos %>%
+  mutate(
+    transf_rel4 = case_when(
+      reli_padre == "Católica" & reli_madre == "Católica" ~ "Padres católicos",
+      reli_padre == "Evangélica" & reli_madre == "Evangélica" ~ "Padres evangélicos",
+      reli_padre == "Ninguna religión" & reli_madre == "Ninguna religión" ~ "Padres sin religión",
+      reli_padre == "Católica" & reli_madre == "Ninguna religión" ~ "Un padre católico",
+      reli_padre == "Ninguna religión" & reli_madre == "Católica" ~ "Un padre católico",
+      reli_padre == "Evangélica" & reli_madre == "Ninguna religión" ~ "Un padre evangélico",
+      reli_padre == "Ninguna religión" & reli_madre == "Evangélica" ~ "Un padre evangélico",
+      reli_padre == "Católica" & reli_madre == "Evangélica" ~ "Un padre católico y otro evangélico",
+      reli_padre == "Evangélica" & reli_madre == "Católica" ~ "Un padre católico y otro evangélico",
+      TRUE ~ NA_character_
+    )
+  )
+
+# Filtrar los casos específicos para duplicar: Católico-Evangélico o viceversa
+duplicados_cat_ev <- datos %>%
+  filter(
+    (reli_padre == "Católica" & reli_madre == "Evangélica") |
+      (reli_padre == "Evangélica" & reli_madre == "Católica")
+  ) %>%
+  mutate(transf_rel4 = "Un padre católico") %>%
+  bind_rows(
+    datos %>%
+      filter(
+        (reli_padre == "Católica" & reli_madre == "Evangélica") |
+          (reli_padre == "Evangélica" & reli_madre == "Católica")
+      ) %>%
+      mutate(transf_rel4 = "Un padre evangélico"),
+    datos %>%
+      filter(
+        (reli_padre == "Católica" & reli_madre == "Evangélica") |
+          (reli_padre == "Evangélica" & reli_madre == "Católica")
+      ) %>%
+      mutate(transf_rel4 = "Un padre católico y otro evangélico")
+  )
+
+# Filtrar los casos donde uno de los padres no tiene religión
+duplicados_un_padre_ninguna <- datos %>%
+  filter(
+    (reli_padre == "Católica" & reli_madre == "Ninguna religión") |
+      (reli_padre == "Ninguna religión" & reli_madre == "Católica") |
+      (reli_padre == "Evangélica" & reli_madre == "Ninguna religión") |
+      (reli_padre == "Ninguna religión" & reli_madre == "Evangélica")
+  ) %>%
+  mutate(transf_rel4 = "Un padre ninguna")
+
+# Combinar los datos originales con los duplicados
+datos_final <- datos %>%
+  bind_rows(duplicados_cat_ev, duplicados_un_padre_ninguna)
+
+tabla_ponderada <- datos_final %>%
+  filter(!is.na(transf_rel4), !is.na(religion_encuestado2), !is.na(ponderador)) %>%
+  group_by(transf_rel4, religion_encuestado2) %>%
+  summarise(freq_ponderada = sum(ponderador, na.rm = TRUE), .groups = "drop")
+totales_filas <- tabla_ponderada %>%
+  group_by(transf_rel4) %>%
+  summarise(total_ponderado = sum(freq_ponderada, na.rm = TRUE), .groups = "drop")
+tabla_ponderada <- tabla_ponderada %>%
+  left_join(totales_filas, by = "transf_rel4") %>%
+  mutate(porcentaje = (freq_ponderada / total_ponderado) * 100) %>%
+  select(transf_rel4, religion_encuestado2, porcentaje)
+tabla_df <- tabla_ponderada %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = porcentaje)
+colnames(tabla_df)[1] <- ""
+kable(tabla_df, digits = 1, caption = "Tasas de retención y desafiliación de las principales agrupaciones religiosas y 'ninguna religión'", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+```
+
+(Fuente: Encuesta Bicentenario 2006-2024)
+
+#### Gráfico 9: Afiliación religiosa de quienes fueron criados como católicos (por ambos padres o solo por uno de ellos)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+datos <- datos %>%
+  mutate(categoria_religiosa = case_when(
+    (transf_rel3 %in% c("Madre católica", "Padre católico", "Padres católicos") & religion_encuestado2 == "Católica") ~ "Retainers",
+    (transf_rel3 %in% c("Madre católica", "Padre católico", "Padres católicos") & religion_encuestado2 == "Ninguna religión") ~ "Leavers",
+    (transf_rel3 %in% c("Madre católica", "Padre católico", "Padres católicos") & religion_encuestado2 == "Evangélica") ~ "Switchers1",
+    (transf_rel3 %in% c("Madre católica", "Padre católico", "Padres católicos") & religion_encuestado2 == "Otra religión") ~ "Switchers2",
+    TRUE ~ NA_character_
+  ))
+
+ggplot(datos %>% filter(!is.na(categoria_religiosa)), aes(x = categoria_religiosa, weight = ponderador)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)*100), fill = "#00A86B") +
+  labs(
+    x = "Categorías religiosas",
+    y = "Porcentaje"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  geom_text(
+    aes(y = (..count..)/sum(..count..)*100, label = paste0(round((..count..)/sum(..count..)*100, 1), "%")),
+    stat = "count",
+    vjust = -0.5,
+    color = "black",
+    size = 3
+  ) +
+  theme_minimal()
+
+```
+
+(Fuente: Encuesta Bicentenario 2006-2024)
+
+Leavers lo califiqué como quienes pasan a no tener ni una religión.
+
+Switchers1 es quienes pasan a ser evangélicos y Switchers2 quienes pasan a tener otra religión.
+
+#### Valores Predichos de Modelos Logísticos Multinomiales Modelo 4
+
+##### Gráfico 10: Probabilidad de denominación religiosa a partir de actividad religiosa de los padres
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+m4 <- multinom(
+  relevel(factor(religion_encuestado2), ref = "Ninguna religión") ~ 
+    relevel(factor(act_rel2), ref = "Padres inactivos") + 
+    relevel(factor(cohorte_nac), ref = "1960-1969") + 
+    relevel(factor(nse1), ref = "Medio") +
+    relevel(factor(educ_enc), ref="Media") +
+    sexo + ano, 
+  data = datos, 
+  weights = ponderador,
+  trace = FALSE
+)
+# Función para recodificar combinaciones
+recodificar_combinaciones <- function(x) {
+  case_when(
+    x == "Padres inactivos" ~ "II",
+    x == "Padres activos" ~ "AA",
+    x == "Padre activo - Madre inactiva" ~ "IA",
+    x == "Madre activa - Padre inactivo" ~ "AI",
+    TRUE ~ NA_character_
+  )
+}
+
+# Crear nuevos datos para predicciones
+new_data <- expand.grid(
+  act_rel2 = unique(datos$act_rel2)[!is.na(unique(datos$act_rel2))],
+  cohorte_nac = "1960-1969",
+  nse1 = "Medio",
+  educ_enc = "Media",
+  sexo = "Mujer",
+  ano = mean(datos$ano, na.rm = TRUE)
+)
+
+# Generar predicciones de probabilidades
+pred_probs <- predict(m4, newdata = new_data, type = "probs")
+predictions <- cbind(new_data, as.data.frame(pred_probs))
+
+# Recodificar act_rel y transformar a formato largo
+predictions_long <- predictions %>%
+  mutate(act_rel = recodificar_combinaciones(act_rel2)) %>%
+  pivot_longer(
+    cols = c("Católica", "Evangélica"),
+    names_to = "denominacion",
+    values_to = "probabilidad"
+  )
+
+# Crear el gráfico
+ggplot(predictions_long, aes(x = act_rel, y = probabilidad, fill = denominacion)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_text(aes(label = sprintf("%.2f", probabilidad)),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5, size = 3) +
+  facet_wrap(~ denominacion) +
+  scale_fill_manual(values = c(
+    "Católica" = "#FF69B4",       # Rosa
+    "Evangélica" = "#00A86B"
+  )) +
+  theme_minimal() +
+  labs(
+    x = "Combinación Actividad Religiosa Padres ([Madre][Padre])",
+    y = "Probabilidad de Denominación Religiosa"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95"),
+    strip.background = element_rect(fill = "gray95"),
+    strip.text = element_text(face = "bold"),
+    legend.position = "none"  # Oculta la leyenda
+  ) +
+  scale_y_continuous(limits = c(0, 1.1), breaks = seq(0, 1, 0.25))
+
+```
+
+Nota: Valores predichos se calculan controlando por género, edad, educación, nivel socioeconómico del entrevistado y año de la encuesta (Fuente: Encuesta Bicentenario 2006-2024)
+
+##### Gráfico 11: Probabilidad de afiliación religiosa a partir de actividad religiosa de los padres
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+predictions_long_general <- predictions %>%
+  mutate(act_rel2 = recodificar_combinaciones(act_rel2)) %>%
+  mutate(afiliacion_religiosa = rowSums(select(., `Católica`, `Evangélica`, `Otra religión`), na.rm = TRUE))
+
+# Crear el gráfico general
+ggplot(predictions_long_general, aes(x = act_rel2, y = afiliacion_religiosa)) +
+  geom_bar(stat = "identity", position = position_dodge(), fill = "#00A86B") +
+  geom_text(aes(label = sprintf("%.2f", afiliacion_religiosa)),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5, size = 3) +
+  theme_minimal() +
+  labs(
+    x = "Combinación Actividad Religiosa Padres ([Madre][Padre])",
+    y = "Probabilidad de Afiliación Religiosa"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95")
+  )
+
+```
+
+Nota: Valores predichos se calculan controlando por género, edad, educación, nivel socioeconómico del entrevistado y año de la encuesta (Fuente: Encuesta Bicentenario 2006-2024)
+
+##### Gráfico 12: Probabilidad de desafiliación religiosa a partir de actividad religiosa de los padres
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Aplicar la función de recodificación a la columna act_rel
+predictions_long_general <- predictions %>%
+  mutate(act_rel2 = recodificar_combinaciones(act_rel2), na.rm = TRUE) 
+
+# Crear el gráfico general
+ggplot(predictions_long_general, aes(x = act_rel2, y = `Ninguna religión`)) +
+  geom_bar(stat = "identity", position = position_dodge(), fill = "#FFD700") +
+  geom_text(aes(label = sprintf("%.2f", `Ninguna religión`)),
+            position = position_dodge(width = 0.9),
+            vjust = -0.5, size = 3) +
+  theme_minimal() +
+  labs(
+    x = "Combinación Actividad Religiosa Padres ([Madre][Padre])",
+    y = "Probabilidad de Desafiliación Religiosa"
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_line(color = "gray90"),
+    panel.grid.minor = element_line(color = "gray95")
+  )
+
+```
+
+#### Gráfico 13: Porcentaje de padres activos en su actividad religiosa por cohorte de nacimiento del hijo y año de encuesta
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Incluimos también a las personas que no tienen religión
+datos_religiones <- datos %>%
+  mutate(cohorte_grupo = case_when(
+    cohorte_nac %in% c("1980-1989", "1990-1999", "2000-2009") ~ "1980 - 2009",
+    cohorte_nac %in% c("1960-1969", "1970-1979") ~ "1960 - 1979",
+    cohorte_nac %in% c("1940-1949", "1950-1959") ~ "1940 - 1959",
+    cohorte_nac %in% c("1910-1919", "1920-1929", "1930-1939") ~ "1939 o anterior",
+    TRUE ~ NA_character_
+  ))
+
+datos_porcentajes <- datos_religiones %>%
+  group_by(ano, cohorte_grupo) %>%
+  summarise(
+    total_cohorte_ano = sum(ponderador, na.rm = TRUE), # Total ponderado de personas (con o sin religión) en la cohorte y año
+    n_religiosas = sum((act_rel2 %in% c("Padres activos")) * ponderador, na.rm = TRUE), # Total ponderado de personas religiosas
+    porcentaje = (n_religiosas / total_cohorte_ano) * 100, # Porcentaje ponderado de personas religiosas en la cohorte y año
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(cohorte_grupo)) # Filtramos cohortes válidas
+
+# Visualización
+ggplot(datos_porcentajes, aes(x = ano, y = porcentaje, color = cohorte_grupo, weight = total_cohorte_ano)) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid", size = 1.2) +
+  scale_color_manual(values = c(
+    "1980 - 2009" = "#FF69B4", 
+    "1960 - 1979" = "#00A86B",
+    "1940 - 1959" = "#FFD700", 
+    "1939 o anterior" = "#6495ED"
+  )) +
+  scale_x_continuous(
+    breaks = seq(2006, 2024, by = 1),
+    limits = c(2006, 2024)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 35),
+    breaks = seq(0, 35, 10)
+  ) +
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Cohorte"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+```
+
+#### Gráfico 14: Porcentaje de un padre activo y otro inactivo en su actividad religiosa por cohorte de nacimiento del hijo y año de encuesta
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Incluimos también a las personas que no tienen religión
+datos_religiones <- datos %>%
+  mutate(cohorte_grupo = case_when(
+    cohorte_nac %in% c("1980-1989", "1990-1999", "2000-2009") ~ "1980 - 2009",
+    cohorte_nac %in% c("1960-1969", "1970-1979") ~ "1960 - 1979",
+    cohorte_nac %in% c("1940-1949", "1950-1959") ~ "1940 - 1959",
+    cohorte_nac %in% c("1910-1919", "1920-1929", "1930-1939") ~ "1939 o anterior",
+    TRUE ~ NA_character_
+  ))
+
+datos_porcentajes <- datos_religiones %>%
+  group_by(ano, cohorte_grupo) %>%
+  summarise(
+    total_cohorte_ano = sum(ponderador, na.rm = TRUE), # Total ponderado de personas (con o sin religión) en la cohorte y año
+    n_religiosas = sum((act_rel2 %in% c("Padre activo - Madre inactiva", "Madre activa - Padre inactivo")) * ponderador, na.rm = TRUE), # Total ponderado de personas religiosas
+    porcentaje = (n_religiosas / total_cohorte_ano) * 100, # Porcentaje ponderado de personas religiosas en la cohorte y año
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(cohorte_grupo)) # Filtramos cohortes válidas
+
+# Visualización
+ggplot(datos_porcentajes, aes(x = ano, y = porcentaje, color = cohorte_grupo, weight = total_cohorte_ano)) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid", size = 1.2) +
+  scale_color_manual(values = c(
+    "1980 - 2009" = "#FF69B4", 
+    "1960 - 1979" = "#00A86B",
+    "1940 - 1959" = "#FFD700", 
+    "1939 o anterior" = "#6495ED"
+  )) +
+  scale_x_continuous(
+    breaks = seq(2006, 2024, by = 1),
+    limits = c(2006, 2024)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 20),
+    breaks = seq(0, 20, 10)
+  ) +
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Cohorte"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+```
+
+#### Gráfico 15: Porcentaje de padres inactivos en su actividad religiosa por cohorte de nacimiento del hijo y año de encuesta
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Incluimos también a las personas que no tienen religión
+datos_religiones <- datos %>%
+  mutate(cohorte_grupo = case_when(
+    cohorte_nac %in% c("1980-1989", "1990-1999", "2000-2009") ~ "1980 - 2009",
+    cohorte_nac %in% c("1960-1969", "1970-1979") ~ "1960 - 1979",
+    cohorte_nac %in% c("1940-1949", "1950-1959") ~ "1940 - 1959",
+    cohorte_nac %in% c("1910-1919", "1920-1929", "1930-1939") ~ "1939 o anterior",
+    TRUE ~ NA_character_
+  ))
+
+datos_porcentajes <- datos_religiones %>%
+  group_by(ano, cohorte_grupo) %>%
+  summarise(
+    total_cohorte_ano = sum(ponderador, na.rm = TRUE), # Total ponderado de personas (con o sin religión) en la cohorte y año
+    n_religiosas = sum((act_rel2 %in% c("Padres inactivos")) * ponderador, na.rm = TRUE), # Total ponderado de personas religiosas
+    porcentaje = (n_religiosas / total_cohorte_ano) * 100, # Porcentaje ponderado de personas religiosas en la cohorte y año
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(cohorte_grupo)) # Filtramos cohortes válidas
+
+# Visualización
+ggplot(datos_porcentajes, aes(x = ano, y = porcentaje, color = cohorte_grupo)) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid", size = 1.2) +
+  scale_color_manual(values = c(
+    "1980 - 2009" = "#FF69B4", 
+    "1960 - 1979" = "#00A86B",
+    "1940 - 1959" = "#FFD700", 
+    "1939 o anterior" = "#6495ED"
+  )) +
+  scale_x_continuous(
+    breaks = seq(2006, 2024, by = 1),
+    limits = c(2006, 2024)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 60),
+    breaks = seq(0, 60, 10)
+  ) +
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Cohorte"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+```
+
+#### Tablas de caracterización sociodemográfica evangélicos de tronco católico
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+datos1 <- datos %>%
+  filter(religion_encuestado2 == "Evangélica", transf_rel == "Padres católicos")
+
+tabla_df <- datos1 %>%
+  filter(!is.na(nse1)) %>%  # Excluir NA en la variable de interés
+  group_by(nse1) %>%
+  summarise(Porcentaje = sum(ponderador, na.rm = TRUE) / sum(datos1$ponderador, na.rm = TRUE) * 100) %>%
+  ungroup()
+colnames(tabla_df) <- c("NSE", "Porcentaje")
+kable(tabla_df, digits = 1, caption = "Nivel socioeconómico", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+chisq.test(table(datos1$nse1))
+
+tabla_df <- datos1 %>%
+  filter(!is.na(tipocomuna)) %>%  # Excluir NA en la variable de interés
+  group_by(tipocomuna) %>%
+  summarise(Porcentaje = sum(ponderador, na.rm = TRUE) / sum(datos1$ponderador, na.rm = TRUE) * 100) %>%
+  ungroup()
+colnames(tabla_df) <- c("", "Porcentaje")
+kable(tabla_df, digits = 1, caption = "Tipo comuna", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+chisq.test(table(datos1$tipocomuna))
+
+tabla_df <- datos1 %>%
+  filter(!is.na(educ_enc)) %>%  # Excluir NA en la variable de interés
+  group_by(educ_enc) %>%
+  summarise(Porcentaje = sum(ponderador, na.rm = TRUE) / sum(datos1$ponderador, na.rm = TRUE) * 100) %>%
+  ungroup()
+colnames(tabla_df) <- c("Educación", "Porcentaje")
+kable(tabla_df, digits = 1, caption = "Nivel educacional", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+chisq.test(table(datos1$educ_enc))
+
+tabla_df <- datos1 %>%
+  filter(!is.na(sexo)) %>%  # Excluir NA en la variable de interés
+  group_by(sexo) %>%
+  summarise(Porcentaje = sum(ponderador, na.rm = TRUE) / sum(datos1$ponderador, na.rm = TRUE) * 100) %>%
+  ungroup()
+colnames(tabla_df) <- c("", "Porcentaje")
+kable(tabla_df, digits = 1, caption = "Sexo", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+chisq.test(table(datos1$sexo))
+
+tabla_df <- datos1 %>%
+  filter(!is.na(tramoedad)) %>%  # Excluir NA en la variable de interés
+  group_by(tramoedad) %>%
+  summarise(Porcentaje = sum(ponderador, na.rm = TRUE) / sum(datos1$ponderador, na.rm = TRUE) * 100) %>%
+  ungroup()
+colnames(tabla_df) <- c("", "Porcentaje")
+kable(tabla_df, digits = 1, caption = "Tramo edad", 
+      format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+chisq.test(table(datos1$tramoedad))
+```
+
+Tipo de comuna: A son las comunas de mayor tamaño y D las de menor tamaño.
+
+Todas las diferencias son estadísiticamente significativas.
+
+#### Gráfico 16: Porcentaje de personas evangélicas por cohorte de nacimiento y año de encuesta
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+# Incluimos también a las personas que no tienen religión
+datos_religiones <- datos %>%
+  mutate(cohorte_grupo = case_when(
+    cohorte_nac %in% c("1980-1989", "1990-1999", "2000-2009") ~ "1980 - 2009",
+    cohorte_nac %in% c("1960-1969", "1970-1979") ~ "1960 - 1979",
+    cohorte_nac %in% c("1940-1949", "1950-1959") ~ "1940 - 1959",
+    cohorte_nac %in% c("1910-1919", "1920-1929", "1930-1939") ~ "1939 o anterior",
+    TRUE ~ NA_character_
+  ))
+
+datos_porcentajes <- datos_religiones %>%
+  group_by(ano, cohorte_grupo) %>%
+  summarise(
+    total_cohorte_ano = sum(ponderador, na.rm = TRUE), # Total ponderado de personas (con o sin religión) en la cohorte y año
+    n_religiosas = sum((religion_encuestado2 %in% c("Evangélica")) * ponderador, na.rm = TRUE), # Total ponderado de personas religiosas
+    porcentaje = (n_religiosas / total_cohorte_ano) * 100, # Porcentaje ponderado de personas religiosas en la cohorte y año
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(cohorte_grupo)) # Filtramos cohortes válidas
+
+# Visualización
+ggplot(datos_porcentajes, aes(x = ano, y = porcentaje, color = cohorte_grupo)) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "solid", size = 1.2) +
+  scale_color_manual(values = c(
+    "1980 - 2009" = "#FF69B4", 
+    "1960 - 1979" = "#00A86B",
+    "1940 - 1959" = "#FFD700", 
+    "1939 o anterior" = "#6495ED"
+  )) +
+  scale_x_continuous(
+    breaks = seq(2006, 2024, by = 1),
+    limits = c(2006, 2024)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 20),
+    breaks = seq(0, 20, 10)
+  ) +
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Cohorte"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank()
+  )
+
+```
+
+Tablas
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tabla_df <- datos %>%
+  filter(!is.na(religion_encuestado2), !is.na(frecuencia_rezar2)) %>%  
+  group_by(frecuencia_rezar2, religion_encuestado2) %>%
+  summarise(Frecuencia = sum(ponderador, na.rm = TRUE), .groups = "drop") %>%
+  group_by(religion_encuestado2) %>%
+  mutate(Porcentaje = (Frecuencia / sum(Frecuencia)) * 100) %>%  
+  ungroup()
+tabla_df %>%
+  select(frecuencia_rezar2, religion_encuestado2, Porcentaje) %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = Porcentaje) %>%
+  kable(digits = 1, caption = "Habito de rezar según religión", 
+        format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+
+chisq.test(table(datos$frecuencia_rezar2, datos$religion_encuestado2))
+
+tabla_df <- datos %>%
+  filter(!is.na(religion_encuestado2), !is.na(culto_virgen1)) %>%  
+  group_by(culto_virgen1, religion_encuestado2) %>%
+  summarise(Frecuencia = sum(ponderador, na.rm = TRUE), .groups = "drop") %>%
+  group_by(religion_encuestado2) %>%
+  mutate(Porcentaje = (Frecuencia / sum(Frecuencia)) * 100) %>%  
+  ungroup()
+tabla_df %>%
+  select(culto_virgen1, religion_encuestado2, Porcentaje) %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = Porcentaje) %>%
+  kable(digits = 1, caption = "Tiene la costumbre de detenerse y rezar a la Virgen en un oratorio, gruta o cualquier imagen pública expuesta según religión", 
+        format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+
+chisq.test(table(datos$culto_virgen1, datos$religion_encuestado2))
+
+tabla_df <- datos %>%
+  filter(!is.na(religion_encuestado2), !is.na(culto_virgen2)) %>%  
+  group_by(culto_virgen2, religion_encuestado2) %>%
+  summarise(Frecuencia = sum(ponderador, na.rm = TRUE), .groups = "drop") %>%
+  group_by(religion_encuestado2) %>%
+  mutate(Porcentaje = (Frecuencia / sum(Frecuencia)) * 100) %>%  
+  ungroup()
+tabla_df %>%
+  select(culto_virgen2, religion_encuestado2, Porcentaje) %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = Porcentaje) %>%
+  kable(digits = 1, caption = "Tiene la costumbre de hacer una manda a la Virgen y después paga con oraciones, homenajes o peregrinación según religión", 
+        format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+
+chisq.test(table(datos$culto_virgen2, datos$religion_encuestado2))
+
+tabla_df <- datos %>%
+  filter(!is.na(religion_encuestado2), !is.na(culto_virgen6)) %>%  
+  group_by(culto_virgen6, religion_encuestado2) %>%
+  summarise(Frecuencia = sum(ponderador, na.rm = TRUE), .groups = "drop") %>%
+  group_by(religion_encuestado2) %>%
+  mutate(Porcentaje = (Frecuencia / sum(Frecuencia)) * 100) %>%  
+  ungroup()
+tabla_df %>%
+  select(culto_virgen6, religion_encuestado2, Porcentaje) %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = Porcentaje) %>%
+  kable(digits = 1, caption = "Tiene costumbre de visitar el cementerio el día de los muertos a personas cercanas a usted o que han muerto según religión", 
+        format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+
+chisq.test(table(datos$culto_virgen6, datos$religion_encuestado2))
+
+tabla_df <- datos %>%
+  filter(!is.na(religion_encuestado2), !is.na(encomendarse_santo)) %>%  
+  group_by(encomendarse_santo, religion_encuestado2) %>%
+  summarise(Frecuencia = sum(ponderador, na.rm = TRUE), .groups = "drop") %>%
+  group_by(religion_encuestado2) %>%
+  mutate(Porcentaje = (Frecuencia / sum(Frecuencia)) * 100) %>%  
+  ungroup()
+tabla_df %>%
+  select(encomendarse_santo, religion_encuestado2, Porcentaje) %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = Porcentaje) %>%
+  kable(digits = 1, caption = "Tiene la costumbre de encomendarse a algún santo según religión", 
+        format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+
+chisq.test(table(datos$encomendarse_santo, datos$religion_encuestado2))
+
+tabla_df <- datos %>%
+  filter(!is.na(religion_encuestado2), !is.na(encomendar_familiares)) %>%  
+  group_by(encomendar_familiares, religion_encuestado2) %>%
+  summarise(Frecuencia = sum(ponderador, na.rm = TRUE), .groups = "drop") %>%
+  group_by(religion_encuestado2) %>%
+  mutate(Porcentaje = (Frecuencia / sum(Frecuencia)) * 100) %>%  
+  ungroup()
+tabla_df %>%
+  select(encomendar_familiares, religion_encuestado2, Porcentaje) %>%
+  pivot_wider(names_from = religion_encuestado2, values_from = Porcentaje) %>%
+  kable(digits = 1, caption = "Tiene la costumbre de encomendarse a algún familiar que haya fallecido según religión", 
+        format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = c("hold_position"))
+
+chisq.test(table(datos$encomendar_familiares, datos$religion_encuestado2))
+
+calcular_N_total <- function(variable) {
+  N_total <- datos %>%
+    filter(!is.na(religion_encuestado2), !is.na(.data[[variable]])) %>%
+    summarise(N = n()) %>%
+    pull(N)
+  
+  cat("N total de", variable, "según creencia en Dios:", N_total, "\n")
+}
+
+# Variables a analizar
+variables <- c("frecuencia_rezar2", "culto_virgen1", "culto_virgen2", "culto_virgen6", "encomendar_familiares", "encomendarse_santo")
+
+for (var in variables) {
+  calcular_N_total(var)
+}
+
+# Función para ver en qué años se preguntó cada variable
+ver_anos_preguntados <- function(variable) {
+  anos_disponibles <- datos %>%
+    filter(!is.na(.data[[variable]])) %>%
+    distinct(ano) %>%
+    pull(ano)
+  
+  cat("La variable", variable, "fue preguntada en los años:", paste(anos_disponibles, collapse = ", "), "\n")
+}
+
+# Aplicar la función a todas las variables del vector
+for (var in variables) {
+  ver_anos_preguntados(var)
+}
+
+```

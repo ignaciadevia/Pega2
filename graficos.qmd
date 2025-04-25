@@ -1,0 +1,773 @@
+---
+title: "Gráficos"
+format: pdf
+editor: visual
+---
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(RColorBrewer)
+library(dplyr)
+library(ggplot2)
+library(haven)
+library(sjlabelled)
+library(labelled)
+library(tidyr)
+
+
+getwd()
+load("C:/Users/cjara/OneDrive - Universidad Católica de Chile/Bicentenario/base_pt3.RData")
+```
+
+#### Identificación religiosa del encuestado a lo largo de los años
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+paleta_colores <- brewer.pal(6, "Set1") 
+
+tasa_reli <- datos %>%
+  group_by(ano, religion_encuestado) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_religion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_religion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_reli = (total_religion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(tasa_reli %>% drop_na(religion_encuestado), aes(x = ano, y = tasa_reli, color = religion_encuestado, group = religion_encuestado)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje de cada religión",
+    color = "Religión"
+  ) +
+  scale_color_manual(values = paleta_colores) +  
+  scale_x_continuous(breaks = seq(min(tasa_reli$ano), max(tasa_reli$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Identificación religiosa de la madre a lo largo de los años
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+tasa_reli2 <- datos %>%
+  group_by(ano, religion_madre) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_religion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_religion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_reli = (total_religion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(tasa_reli2 %>% drop_na(religion_madre), aes(x = ano, y = tasa_reli, color = religion_madre, group = religion_madre)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje de cada religión",
+    color = "Religión"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_reli$ano), max(tasa_reli$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Identificación religiosa del padre a lo largo de los años
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+tasa_reli3 <- datos %>%
+  group_by(ano, religion_padre) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_religion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_religion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_reli = (total_religion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(tasa_reli3 %>% drop_na(religion_padre), aes(x = ano, y = tasa_reli, color = religion_padre, group = religion_padre)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje de cada religión",
+    color = "Religión"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_reli$ano), max(tasa_reli$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Identificación religiosa del cónyuge o pareja a lo largo de los años
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+tasa_reli4 <- datos %>%
+  group_by(ano, religion_pareja) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_religion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_religion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_reli = (total_religion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(tasa_reli4 %>% drop_na(religion_pareja), aes(x = ano, y = tasa_reli, color = religion_pareja, group = religion_pareja)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje de cada religión",
+    color = "Religión"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_reli$ano), max(tasa_reli$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Identificación religiosa del hijo/a mayor a lo largo de los años
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+datos$religion_hijo <- as.factor(datos$religion_hijo)
+
+tasa_reli5 <- datos %>%
+  group_by(ano, religion_hijo) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_religion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_religion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_reli = (total_religion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_reli5), aes(x = ano, y = tasa_reli, color = religion_hijo, group = religion_hijo)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje de cada religión",
+    color = "Religión"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_reli$ano), max(tasa_reli$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+
+```
+
+#### Frecuencia con que el encuestado asiste a misa o servicios religiosos
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+tasa_misa <- datos %>%
+  group_by(ano, frecuencia_misa_enc) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_misa = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_misa, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_misa = (total_misa / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_misa), aes(x = ano, y = tasa_misa, color = frecuencia_misa_enc, group = frecuencia_misa_enc)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Frecuencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_misa$ano), max(tasa_misa$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Frecuencia con que la madre asiste a misa o servicios religiosos
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_misa2 <- datos %>%
+  group_by(ano, frecuencia_misa_madre) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_misa = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_misa, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_misa = (total_misa / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_misa2), aes(x = ano, y = tasa_misa, color = frecuencia_misa_madre, group = frecuencia_misa_madre)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Frecuencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_misa$ano), max(tasa_misa$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Frecuencia con que el padre asiste a misa o servicios religiosos
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_misa3 <- datos %>%
+  group_by(ano, frecuencia_misa_padre) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_misa = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_misa, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_misa = (total_misa / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_misa3), aes(x = ano, y = tasa_misa, color = frecuencia_misa_padre, group = frecuencia_misa_padre)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Frecuencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_misa$ano), max(tasa_misa$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Frecuencia con que el cónyuge o pareja asiste a misa o servicios religiosos
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+tasa_misa4 <- datos %>%
+  group_by(ano, frecuencia_misa_pareja) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_misa = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_misa, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_misa = (total_misa / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_misa4), aes(x = ano, y = tasa_misa, color = frecuencia_misa_pareja, group = frecuencia_misa_pareja)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Frecuencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_misa$ano), max(tasa_misa$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Frecuencia con que reza u ora (fuera de ceremonias o servicios religiosos)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+tasa_rezar <- datos %>%
+  group_by(ano, frecuencia_rezar1) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_rezar = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_rezar, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_rezar = (total_rezar / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_rezar), aes(x = ano, y = tasa_rezar, color = frecuencia_rezar1, group = frecuencia_rezar1)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Frecuencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_rezar$ano), max(tasa_rezar$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Frecuencia con que reza u ora (fuera de ceremonias o servicios religiosos)
+
+Nota: hice dos variables sobre frecuencia con que reza, ya que las primeras tres categorías de respuesta difieren muchísimo como para agruparlas. La primera pregunta (que se presenta anteriormente) indaga sobre las veces que se reza a la semana y la segunda (la que viene a continuación), sobre las veces que se reza al día.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_rezar2 <- datos %>%
+  group_by(ano, frecuencia_rezar2) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_rezar = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_rezar, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_rezar = (total_rezar / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_rezar2), aes(x = ano, y = tasa_rezar, color = frecuencia_rezar2, group = frecuencia_rezar2)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Frecuencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_rezar$ano), max(tasa_rezar$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Creencia en Dios
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_dios <- datos %>%
+  group_by(ano, creencia_dios) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_dios = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_dios, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_dios = (total_dios / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_dios), aes(x = ano, y = tasa_dios, color = creencia_dios, group = creencia_dios)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Creencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_dios$ano), max(tasa_dios$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Creencia en milagros
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_milagros <- datos %>%
+  group_by(ano, creencia_milagros) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_milagros = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_milagros, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_milagros = (total_milagros / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_milagros), aes(x = ano, y = tasa_milagros, color = creencia_milagros, group = creencia_milagros)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Creencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_milagros$ano), max(tasa_milagros$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Se define como una persona...
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_define <- datos %>%
+  group_by(ano, define_como) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_define = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_define, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_define = (total_define / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_define), aes(x = ano, y = tasa_define, color = define_como, group = define_como)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Se define como"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_define$ano), max(tasa_define$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+En este caso para 2016 no existe el nada religiosa, por eso es probable que el poco religiosa sea tan algo y luego baje tanto.
+
+#### Nivel de acuerdo con la frase: "Personalmente trato de dar testimonio o de convencer a otros acerca de mi fe"
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_opinion <- datos %>%
+  group_by(ano, op_religion4) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_opinion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_opinion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_opinion = (total_opinion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_opinion), aes(x = ano, y = tasa_opinion, color = op_religion4, group = op_religion4)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Nivel de acuerdo"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_opinion$ano), max(tasa_opinion$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+Algo pasó en 2012 que mucha gente no respondió la pregunta y por eso la caída.
+
+#### Nivel de acuerdo con la frase: "Se debería tomar más en cuenta a la Iglesia Catolica a la hora de tomar decisiones públicas"
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_opinion2 <- datos %>%
+  group_by(ano, op_religion8) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_opinion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_opinion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_opinion = (total_opinion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_opinion2), aes(x = ano, y = tasa_opinion, color = op_religion8, group = op_religion8)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Nivel de acuerdo"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_opinion2$ano), max(tasa_opinion2$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+Lo mismo ocurre acá con 2012, debe ser un problema con la aplicación de la encuesta. Podríamos dejar fuera ese año para que no se vea ese salto, ya que probablemente no demuestra un cambio representativo de la población.
+
+#### Nivel de acuerdo con la frase: "Los valores cristianos deberían jugar un rol más importante en la sociedad actual"
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_opinion3 <- datos %>%
+  group_by(ano, op_religion10) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_opinion = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_opinion, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_opinion = (total_opinion / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_opinion3), aes(x = ano, y = tasa_opinion, color = op_religion10, group = op_religion10)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Nivel de acuerdo"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_opinion3$ano), max(tasa_opinion3$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Tiene la costumbre de detenerse y rezar a la Virgen en un oratorio, gruta o cualquier imagen pública expuesta
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_culto <- datos %>%
+  group_by(ano, culto_virgen1) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_culto = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_culto, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_culto = (total_culto / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_culto), aes(x = ano, y = tasa_culto, color = culto_virgen1, group = culto_virgen1)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Costumbre"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_culto$ano), max(tasa_culto$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Tiene la costumbre de hacer una manda a la Virgen y después paga con oraciones, homenajes o peregrinación
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_culto2 <- datos %>%
+  group_by(ano, culto_virgen2) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_culto = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_culto, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_culto = (total_culto / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_culto2), aes(x = ano, y = tasa_culto, color = culto_virgen2, group = culto_virgen2)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Costumbre"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_culto$ano), max(tasa_culto$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Tiene costumbre de visitar el cementerio el día de los muertos a personas cercanas a usted o que han muerto
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_culto3 <- datos %>%
+  group_by(ano, culto_virgen6) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_culto = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_culto, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_culto = (total_culto / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_culto3), aes(x = ano, y = tasa_culto, color = culto_virgen6, group = culto_virgen6)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Costumbre"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_culto$ano), max(tasa_culto$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Tiene la costumbre de encomendarse a algún santo
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_santo <- datos %>%
+  group_by(ano, encomendarse_santo) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_santo = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_santo, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_santo = (total_santo / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_santo), aes(x = ano, y = tasa_santo, color = encomendarse_santo, group = encomendarse_santo)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Costumbre"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_santo$ano), max(tasa_santo$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Cree que los sacerdotes pueden perdonar los pecados en el nombre de Dios
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_pecados <- datos %>%
+  group_by(ano, creencia_cat2) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_pecados = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_pecados, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_pecados = (total_pecados / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+
+ggplot(na.omit(tasa_pecados), aes(x = ano, y = tasa_pecados, color = creencia_cat2, group = creencia_cat2)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Creencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_santo$ano), max(tasa_santo$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
+
+#### Cree que la fe se puede vivir sin pertenecer a ninguna Iglesia
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+tasa_fe <- datos %>%
+  group_by(ano, creencia_fe_siniglesia) %>%  # Agrupar por año, religión y etiqueta
+  summarise(
+    total_fe = sum(ponderador, na.rm = TRUE),  # Sumar ponderadores por cada categoría
+    .groups = 'drop'
+  ) %>%
+  group_by(ano) %>%  # Agrupar por año para obtener el total de ponderadores por año
+  mutate(
+    total_individuos = sum(total_fe, na.rm = TRUE),  # Total ponderado de la muestra en ese año
+    tasa_fe = (total_fe / total_individuos) * 100  # Calcular el porcentaje
+  ) %>%
+  ungroup()
+ggplot(na.omit(tasa_fe), aes(x = ano, y = tasa_fe, color = creencia_fe_siniglesia, group = creencia_fe_siniglesia)) +
+  geom_line(size = 0.5) +  # Línea para cada religión
+  geom_point(size = 1.5) +  # Puntos para cada religión
+  labs(
+    x = "Año",
+    y = "Porcentaje",
+    color = "Creencia"
+  ) +
+  scale_color_manual(values = paleta_colores) + 
+  scale_x_continuous(breaks = seq(min(tasa_santo$ano), max(tasa_santo$ano), by = 2)) + 
+  theme_minimal() +  # Tema limpio y minimalista
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotar etiquetas del eje x para mayor legibilidad
+  )
+```
